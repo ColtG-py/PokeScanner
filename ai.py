@@ -1,8 +1,9 @@
 import openai
 from openai import OpenAI
+import os
 
 # Set your OpenAI API key here
-api_key = 'sk-None-I56MR0Xzg35tT0bS4CbVT3BlbkFJxmC3ZLfP0SJxLBgsP8XW'
+api_key = os.environ['OPENAI_API_KEY']
 
 # Function to get corrected name and level using GPT-3.5
 def get_corrected_name_and_level(text):
