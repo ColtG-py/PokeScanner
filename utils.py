@@ -1,5 +1,4 @@
 import requests
-from image_processing import extract_text_from_image
 from ai import get_corrected_name_and_level
 
 # Function to fetch moveset and types
@@ -41,54 +40,15 @@ def get_move_details(move_url):
         return 'N/A'
 
 # Main function to process the image and fetch moveset and types
-def process_image_and_get_moveset(image):
-    text = extract_text_from_image(image)
-    if text.startswith("Tesseract is not installed"):
-        print(text)
-        return text
-
-    print(f"Extracted Text: {text}")
-
-    # Basic parsing to extract Pokémon name and level from the OCR output
-    lines = text.split('\n')
-    pokemon_name = None
-    level = None
-
-    for line in lines:
-        if "Lv" in line or "Lv." in line or "Lu" in line:
-            line = line.replace(":", "")  # Remove any semicolons
-            parts = line.split()
-            if len(parts) > 1:
-                pokemon_name = parts[0]
-                
-                # Extract level by finding the part after "Lv" or "Lu"
-                for part in parts:
-                    if part.startswith("Lv") or part.startswith("Lu"):
-                        level_str = part.replace('Lv', '').replace('Lu', '').replace('Lv.', '')
-                        if level_str.isdigit():
-                            level = int(level_str)
-
-    if not pokemon_name or not level:
-        corrected_text = get_corrected_name_and_level(text) # AI Suggestion based on text.
-        corrected_parts = corrected_text.split() # split on space.
-        if (corrected_parts[0] == "NULL"): #jank
-            time.sleep(5)
-            return 
-        if len(corrected_parts) >= 2:
-            pokemon_name = corrected_parts[0]
-            level = int(corrected_parts[-1].replace('Lv', '').replace('Lv.', '').replace('Lu', ''))
-
-    if pokemon_name and level:
-        pokemon_info = get_pokemon_info(pokemon_name, level)
-        if isinstance(pokemon_info, dict):
-            return {
-                'pokemon_name': pokemon_name,
-                'level': level,
-                'pokedex_number': pokemon_info['pokedex_number'],
-                'types': pokemon_info['types'],
-                'moveset': pokemon_info['moveset']
-            }
-        else:
-            return pokemon_info
+def process_image_and_get_moveset(pokemon_name, level):
+    pokemon_info = get_pokemon_info(pokemon_name, level)
+    if isinstance(pokemon_info, dict):
+        return {
+            'pokemon_name': pokemon_name,
+            'level': level,
+            'pokedex_number': pokemon_info['pokedex_number'],
+            'types': pokemon_info['types'],
+            'moveset': pokemon_info['moveset']
+        }
     else:
-        return "Failed to extract Pokémon name or level."
+        return pokemon_info

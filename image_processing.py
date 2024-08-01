@@ -3,9 +3,8 @@ import pytesseract
 from PIL import ImageGrab
 import numpy as np
 
-# OCR to extract Pokémon name and level
+# OCR to extract text from an image
 def extract_text_from_image(image):
-    # Perform OCR using the trained 'pokemon' model
     custom_config = r'--oem 3 --psm 6'
     try:
         text = pytesseract.image_to_string(image, lang='pokemon', config=custom_config)
@@ -56,3 +55,11 @@ def select_region():
 
     cv2.destroyAllWindows()
     return (param['ix'], param['iy'], param['fx'] - param['ix'], param['fy'] - param['iy'])
+
+# Function to select two regions
+def select_two_regions():
+    print("Select the region for the Pokémon name.")
+    name_region = select_region()
+    print("Select the region for the level.")
+    level_region = select_region()
+    return name_region, level_region

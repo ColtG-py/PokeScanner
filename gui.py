@@ -1,18 +1,26 @@
 import tkinter as tk
-import numpy as np
 from PIL import Image, ImageTk
 import os
 import threading
+import numpy as np
 from image_processing import select_region, capture_region, extract_text_from_image
-from utils import process_image_and_get_moveset
 from ai import get_corrected_name_and_level
+from utils import process_image_and_get_moveset
+import time
 
 class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Pokémon Moveset OCR")
-        self.screenshot_button = tk.Button(root, text="Select Region and Monitor", command=self.select_region)
-        self.screenshot_button.pack(pady=20)
+
+        self.select_name_button = tk.Button(root, text="Select Pokémon Name Region", command=self.select_name_region)
+        self.select_name_button.pack(pady=10)
+
+        self.select_level_button = tk.Button(root, text="Select Pokémon Level Region", command=self.select_level_region)
+        self.select_level_button.pack(pady=10)
+
+        self.monitor_button = tk.Button(root, text="Start Monitoring", command=self.start_monitoring)
+        self.monitor_button.pack(pady=10)
 
         self.info_frame = tk.Frame(root)
         self.info_frame.pack(pady=10)
@@ -44,20 +52,24 @@ class App:
         self.moves_frame = tk.Frame(root, bg="#F0F0F0", bd=2, relief="groove")
         self.moves_frame.pack(pady=20)
 
+        self.name_region = None
+        self.level_region = None
         self.monitoring = False
         self.monitor_thread = None
 
-    def select_region(self):
-        self.region = select_region()
-        if self.region:
-            self.start_monitoring(self.region)
+    def select_name_region(self):
+        self.name_region = select_region()
 
-    def start_monitoring(self, region):
-        if self.monitoring:
-            self.stop_monitoring()
-        self.monitoring = True
-        self.monitor_thread = threading.Thread(target=self.monitor_region, args=(region,))
-        self.monitor_thread.start()
+    def select_level_region(self):
+        self.level_region = select_region()
+
+    def start_monitoring(self):
+        if self.name_region and self.level_region:
+            if self.monitoring:
+                self.stop_monitoring()
+            self.monitoring = True
+            self.monitor_thread = threading.Thread(target=self.monitor_regions, args=(self.name_region, self.level_region))
+            self.monitor_thread.start()
 
     def stop_monitoring(self):
         self.monitoring = False
@@ -65,18 +77,52 @@ class App:
             self.monitor_thread.join()
             self.monitor_thread = None
 
-    def monitor_region(self, region):
-        prev_screenshot = None
+    def monitor_regions(self, name_region, level_region):
+        prev_screenshot_name = None
+        prev_screenshot_level = None
         while self.monitoring:
-            screenshot = capture_region(region)
-            screenshot_np = np.array(screenshot)
-            if prev_screenshot is None or not np.array_equal(screenshot_np, prev_screenshot):
-                result = process_image_and_get_moveset(screenshot)
-                prev_screenshot = screenshot_np
+            screenshot_name = capture_region(name_region)
+            screenshot_level = capture_region(level_region)
+            screenshot_name_np = np.array(screenshot_name)
+            screenshot_level_np = np.array(screenshot_level)
+            if (prev_screenshot_name is None or not np.array_equal(screenshot_name_np, prev_screenshot_name)) or \
+               (prev_screenshot_level is None or not np.array_equal(screenshot_level_np, prev_screenshot_level)):
+                result = self.process_images_and_get_moveset(screenshot_name, screenshot_level)
+                prev_screenshot_name = screenshot_name_np
+                prev_screenshot_level = screenshot_level_np
                 if isinstance(result, dict):
                     self.update_gui(result)
                 else:
                     print(result)
+
+    def process_images_and_get_moveset(self, name_image, level_image):
+        name_text = extract_text_from_image(name_image)
+        level_text = extract_text_from_image(level_image)
+        
+        name = name_text.split()[0] if name_text else ""
+        level = 0
+        if level_text:
+            level_parts = level_text.split()
+            if len(level_parts) > 1:
+                try:
+                    level = int(level_parts[1].replace('Lv', '').replace('Lv.', ''))
+                except ValueError:
+                    level = 0
+
+        if not name or not level:
+            if name == "NULL":
+                time.sleep(10)
+                return
+            corrected_text = get_corrected_name_and_level(name_text + " " + level_text)
+            corrected_parts = corrected_text.split()
+            if len(corrected_parts) >= 2:
+                name = corrected_parts[0]
+                level = int(corrected_parts[-1].replace('Lv', '').replace('Lv.', ''))
+
+        if name and level:
+            return process_image_and_get_moveset(name, level)
+        else:
+            return "Failed to extract Pokémon name or level."
 
     def update_gui(self, result):
         self.name_value.config(text=result['pokemon_name'])
@@ -107,3 +153,9 @@ class App:
     def on_closing(self):
         self.stop_monitoring()
         self.root.destroy()
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = App(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)
+    root.mainloop()
