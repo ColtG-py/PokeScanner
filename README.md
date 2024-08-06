@@ -9,7 +9,7 @@ Credit to PokeAPI for supplying both the images and the API this program uses to
 2. Navigate to your Tesseract-OCR tessdata folder:
 `C:\Program Files\Tesseract-OCR\tessdata`
 
-3. Drop `pokemon.traineddata` into this folder.
+3. Drop `tesseract-config/pokemon.traineddata` into this folder.
 
 4. Verify this worked by running:
 `tesseract --list-langs`
